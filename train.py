@@ -7,13 +7,11 @@ import torch.nn as nn
 import torch.nn.utils as utils
 import torchvision.utils as vutils    
 from tensorboardX import SummaryWriter
-from Unet import UNET
-from model import PTModel as Model
+
+from model import Model
 from loss import ssim
 from data import getTrainingTestingData
 from utils import AverageMeter, DepthNorm, colorize
- 
-
 
 def main():
     # Arguments
@@ -22,9 +20,8 @@ def main():
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float, help='initial learning rate')
     parser.add_argument('--bs', default=4, type=int, help='batch size')
     args = parser.parse_args()
-    save_path = '/home/krishna/DenseDepth/PyTorch/'
+
     # Create model
-    model = UNET(in_channels=3, out_channels=1).cuda()
     model = Model().cuda()
     print('Model created.')
 
@@ -41,10 +38,9 @@ def main():
 
     # Loss
     l1_criterion = nn.L1Loss()
-    # ssim = pytorch_ssim.SSIM(window_size = 11)
+
     # Start training...
-    for epoch in range(1, args.epochs+1):
-        # print(epoch)
+    for epoch in range(args.epochs):
         batch_time = AverageMeter()
         losses = AverageMeter()
         N = len(train_loader)
@@ -60,18 +56,16 @@ def main():
             # Prepare sample and target
             image = torch.autograd.Variable(sample_batched['image'].cuda())
             depth = torch.autograd.Variable(sample_batched['depth'].cuda(non_blocking=True))
-            # print(depth)
+
             # Normalize depth
             depth_n = DepthNorm( depth )
-            # print(depth_n)
-            # break
+
             # Predict
             output = model(image)
-            # print(output.shape)
-            # break
+
             # Compute the loss
             l_depth = l1_criterion(output, depth_n)
-            l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range=5000./10.)) * 0.5, 0, 1)
+            l_ssim = torch.clamp((1 - ssim(output, depth_n, val_range = 1000.0 / 10.0)) * 0.5, 0, 1)
 
             loss = (1.0 * l_ssim) + (0.1 * l_depth)
 
@@ -100,12 +94,10 @@ def main():
 
             if i % 300 == 0:
                 LogProgress(model, writer, test_loader, niter)
-        # break
+
         # Record epoch's intermediate results
         LogProgress(model, writer, test_loader, niter)
         writer.add_scalar('Train/Loss.avg', losses.avg, epoch)
-        if epoch % 2 == 0 :
-            torch.save(model.state_dict(), '{0}/Unet_depth{1}.pth'.format(save_path, args.epochs))
 
 def LogProgress(model, writer, test_loader, epoch):
     model.eval()

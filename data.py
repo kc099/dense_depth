@@ -2,15 +2,10 @@ import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-import torchvision.transforms as T
+from torchvision import transforms, utils
 from PIL import Image
 from io import BytesIO
 import random
-
-rgb = '/media/krishna/Data/generated_2.1.0/train/*/*/raw_images/*'
-depth_images = '/media/krishna/Data/generated_2.1.0/train/*/*/depth_images/*'
-
 
 def _is_pil_image(img):
     return isinstance(img, Image.Image)
@@ -88,18 +83,18 @@ class ToTensor(object):
 
     def __call__(self, sample):
         image, depth = sample['image'], sample['depth']
-        
+
         image = self.to_tensor(image)
 
-        depth = depth.resize((150, 150))
+        depth = depth.resize((320, 240))
 
-        if False:
-            depth = self.to_tensor(depth).float() / 1000 #not used
+        if self.is_test:
+            depth = self.to_tensor(depth).float() / 1000
         else:            
-            depth = self.to_tensor(depth).float() * 10000
+            depth = self.to_tensor(depth).float() * 1000
         
         # put in expected range
-        depth = torch.clamp(depth, 10, 5000)
+        depth = torch.clamp(depth, 10, 1000)
 
         return {'image': image, 'depth': depth}
 
@@ -136,7 +131,6 @@ class ToTensor(object):
         else:
             return img
 
-
 def getNoTransform(is_test=False):
     return transforms.Compose([
         ToTensor(is_test=is_test)
@@ -149,47 +143,10 @@ def getDefaultTrainTransform():
         ToTensor()
     ])
 
-# def getTrainingTestingData(batch_size):
-#     data, nyu2_train = loadZipToMem('nyu_data.zip')
-
-#     transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
-#     transformed_testing = depthDatasetMemory(data, nyu2_train, transform=getNoTransform())
-
-#     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)
-
-
-#added by kc
-class depthDataset(Dataset):
-    def __init__(self, transform=None, is_test=False):
-        self.data = []
-        # self.data = dataset
-        if not is_test: 
-            with open('train.txt', 'r') as f:
-                self.data = f.readlines()
-                self.data = [line.rstrip() for line in self.data]
-        else:  
-            with open('test.txt', 'r') as f:
-                self.data = f.readlines()
-                self.data = [line.rstrip() for line in self.data]  
-        self.transform = transform
-
-    def __getitem__(self, idx):
-        sample = self.data[idx]
-        # print(self.data[idx], type(self.data[idx]), len(self.data[idx]))
-        image = Image.open( self.data[idx].split('\t')[0] )
-        depth = Image.open( self.data[idx].split('\t')[1] )
-        # print(depth)
-        sample = {'image': image, 'depth': depth}
-        if self.transform: sample = self.transform(sample)
-        return sample
-
-    def __len__(self):
-        return len(self.data)
-
 def getTrainingTestingData(batch_size):
-    # data, nyu2_train = loadZipToMem('nyu_data.zip')
+    data, nyu2_train = loadZipToMem('nyu_data.zip')
 
-    transformed_training = depthDataset(transform=getDefaultTrainTransform(), is_test=False)
-    transformed_testing = depthDataset(transform=getNoTransform(), is_test=False)
+    transformed_training = depthDatasetMemory(data, nyu2_train, transform=getDefaultTrainTransform())
+    transformed_testing = depthDatasetMemory(data, nyu2_train, transform=getNoTransform())
 
     return DataLoader(transformed_training, batch_size, shuffle=True), DataLoader(transformed_testing, batch_size, shuffle=False)

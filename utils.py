@@ -2,8 +2,9 @@ import matplotlib
 import matplotlib.cm
 import numpy as np
 
-def DepthNorm(depth, maxDepth=5000.0): #5000: max_depth in AI2THOR  
+def DepthNorm(depth, maxDepth=1000.0): 
     return maxDepth / depth
+
 class AverageMeter(object):
     def __init__(self):
         self.reset()
@@ -20,7 +21,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def colorize(value, vmin=10, vmax=5000, cmap='plasma'): #5000: max_depth in AI2THOR 
+def colorize(value, vmin=10, vmax=1000, cmap='plasma'):
     value = value.cpu().numpy()[0,:,:]
 
     # normalize
